@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin WhatsApp Control Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .wa-bg { background-color: #111b21; }
+    .wa-chat-bg { background-color: #0b141a; background-image: radial-gradient(#202c33 1px, transparent 1px); background-size: 20px 20px; }
+  </style>
+</head>
+<body class="bg-[#0c1317] text-slate-100 h-screen flex overflow-hidden">
+
+  <!-- ADMIN AUTH MODAL (Agar Logged in na ho) -->
+  <div id="adminAuth" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-[#111b21] p-8 rounded-2xl w-96 border border-slate-800 space-y-4">
+      <h2 class="text-xl font-bold text-red-500 text-center">🛡️ Admin Portal</h2>
+      <input type="email" id="adminEmail" placeholder="Admin Email" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white">
+      <input type="password" id="adminPass" placeholder="Admin Password" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white">
+      <button onclick="adminLogin()" class="w-full bg-red-600 hover:bg-red-500 py-3 rounded-lg font-bold text-sm">Login as Admin</button>
+      <div id="authErr" class="text-xs text-red-400 text-center"></div>
+    </div>
+  </div>
+
+  <!-- LEFT SIDEBAR: User Approvals + Contacts -->
+  <div class="w-80 md:w-96 bg-[#111b21] border-r border-slate-800 flex flex-col h-full">
+    <!-- Top Profile & Broadcast -->
+    <div class="p-4 bg-[#202c33] flex justify-between items-center border-b border-slate-700">
+      <div class="font-bold text-sm text-red-400">ADMIN CONTROL</div>
+      <button onclick="openBroadcastModal()" class="bg-red-600 hover:bg-red-500 text-xs px-3 py-1.5 rounded-md font-bold shadow-lg">📢 Broadcast Alert</button>
+    </div>
+
+    <!-- Tab Filter: Approvals vs Chats -->
+    <div class="flex border-b border-slate-800 text-xs font-semibold">
+      <button onclick="setTab('chats')" id="tabChats" class="flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400">Active Chats</button>
+      <button onclick="setTab('approvals')" id="tabApprovals" class="flex-1 py-3 text-slate-400">Approval Requests (<span id="pendingCount">0</span>)</button>
+    </div>
+
+    <!-- List Section -->
+    <div id="listContainer" class="flex-1 overflow-y-auto divide-y divide-slate-800/40"></div>
+  </div>
+
+  <!-- RIGHT PANEL: Live Active Chat -->
+  <div class="flex-1 flex flex-col h-full bg-[#0b141a]">
+    <div id="chatHeader" class="bg-[#202c33] px-6 py-3.5 flex justify-between items-center border-b border-slate-800">
+      <div class="font-semibold text-sm" id="activeUserTitle">Select a user to chat</div>
+    </div>
+
+    <div id="adminMsgBox" class="flex-1 wa-chat-bg p-6 overflow-y-auto space-y-3 flex flex-col"></div>
+
+    <div class="bg-[#202c33] p-3 flex gap-3 items-center">
+      <input type="text" id="adminInput" placeholder="Reply to selected user..." class="flex-1 bg-[#2a3942] px-4 py-3 rounded-full text-sm outline-none text-white focus:ring-1 focus:ring-emerald-500">
+      <button onclick="sendAdminReply()" class="w-11 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white">➤</button>
+    </div>
+  </div>
+
+  <audio id="adminTone" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+
+  <script>
+    const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+    const SUPABASE_KEY = "YOUR_ANON_KEY";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let activeUserId = null;
+    let allProfiles = [];
+    let currentTab = 'chats';
+    const adminTone = document.getElementById('adminTone');
+
+    async function checkAdmin() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        if (prof && prof.role === 'admin') {
+          document.getElementById('adminAuth').classList.add('hidden');
+          loadData();
+          listenRealtime();
+        }
+      }
+    }
+    checkAdmin();
+
+    async function adminLogin() {
+      const email = document.getElementById('adminEmail').value;
+      const password = document.getElementById('adminPass').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return document.getElementById('authErr').innerText = error.message;
+      checkAdmin();
+    }
+
+    async function loadData() {
+      const { data } = await supabase.from('profiles').select('*').neq('role', 'admin').order('created_at', { ascending: false });
+      allProfiles = data || [];
+      renderList();
+    }
+
+    function setTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabChats').className = tab === 'chats' ? 'flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400' : 'flex-1 py-3 text-slate-400';
+      document.getElementById('tabApprovals').className = tab === 'approvals' ? 'flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400' : 'flex-1 py-3 text-slate-400';
+      renderList();
+    }
+
+    function renderList() {
+      const list = document.getElementById('listContainer');
+      list.innerHTML = '';
+      const pending = allProfiles.filter(p => !p.is_approved);
+      document.getElementById('pendingCount').innerText = pending.length;
+
+      const items = currentTab === 'approvals' ? pending : allProfiles.filter(p => p.is_approved);
+
+      items.forEach(u => {
+        const div = document.createElement('div');
+        div.className = `p-4 flex items-center justify-between cursor-pointer hover:bg-[#202c33] transition ${activeUserId === u.id ? 'bg-[#202c33]' : ''}`;
+        
+        div.innerHTML = `
+          <div>
+            <div class="font-semibold text-sm text-slate-200">${u.email}</div>
+            <div class="text-[11px] text-slate-400">${u.is_approved ? '🟢 Active User' : '⏳ Waiting Approval'}</div>
+          </div>
+          <div>
+            ${currentTab === 'approvals' 
+              ? `<button onclick="toggleApprove('${u.id}', true)" class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-500">Approve</button>`
+              : `<button onclick="toggleApprove('${u.id}', false)" class="text-xs text-red-400 hover:underline">Revoke</button>`}
+          </div>
+        `;
+        div.onclick = (e) => {
+          if (e.target.tagName !== 'BUTTON') selectUser(u);
+        };
+        list.appendChild(div);
+      });
+    }
+
+    async function toggleApprove(userId, status) {
+      await supabase.from('profiles').update({ is_approved: status }).eq('id', userId);
+      loadData();
+    }
+
+    async function selectUser(u) {
+      activeUserId = u.id;
+      document.getElementById('activeUserTitle').innerText = `Chatting with: ${u.email}`;
+      renderList();
+      loadActiveMessages();
+    }
+
+    async function loadActiveMessages() {
+      const box = document.getElementById('adminMsgBox');
+      box.innerHTML = '';
+      const { data: msgs } = await supabase.from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${activeUserId}),and(receiver_id.eq.${activeUserId})`)
+        .order('created_at', { ascending: true });
+
+      if (msgs) msgs.forEach(renderAdminBubble);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function renderAdminBubble(m) {
+      const box = document.getElementById('adminMsgBox');
+      const isMe = m.sender_id !== activeUserId;
+      const div = document.createElement('div');
+      div.className = `max-w-[70%] px-3.5 py-2 rounded-xl text-sm ${isMe ? 'ml-auto bg-[#005c4b] text-white rounded-tr-none' : 'mr-auto bg-[#202c33] text-white rounded-tl-none'}`;
+      div.innerHTML = `<div>${m.text}</div><div class="text-[10px] text-slate-400 text-right mt-1">${new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function sendAdminReply() {
+      if (!activeUserId) return alert("Select a user first!");
+      const input = document.getElementById('adminInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from('messages').insert([{
+        sender_id: user.id,
+        receiver_id: activeUserId,
+        text
+      }]);
+    }
+
+    async function openBroadcastModal() {
+      const text = prompt("Enter Broadcast Alert Message (Plays sound for ALL users):");
+      if (!text) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from('messages').insert([{
+        sender_id: user.id,
+        receiver_id: null, // Broadcast to all
+        text: `📢 ALERT: ${text}`
+      }]);
+      alert("Broadcast alert sent with tone trigger!");
+    }
+
+    function listenRealtime() {
+      supabase.channel('admin-room')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadData())
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+          const msg = payload.new;
+          if (activeUserId && (msg.sender_id === activeUserId || msg.receiver_id === activeUserId)) {
+            renderAdminBubble(msg);
+          }
+          adminTone.currentTime = 0;
+          adminTone.play().catch(() => {});
+        })
+        .subscribe();
+    }
+  </script>
+</body>
+</html>
