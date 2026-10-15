@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Portal - WhatsApp & Sound Alert</title>
+  <title>Admin WhatsApp Control Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -17,9 +17,9 @@
   <div id="adminAuth" class="fixed inset-0 bg-black/85 flex items-center justify-center z-50">
     <div class="bg-[#111b21] p-8 rounded-2xl w-96 border border-slate-800 space-y-4 shadow-2xl">
       <div class="text-center">
-        <div class="text-3xl mb-1">🛡️</div>
-        <h2 class="text-xl font-bold text-red-500">Admin Control Login</h2>
-        <p class="text-xs text-slate-400">athravsharma2828@gmail.com</p>
+        <div class="text-4xl mb-2">🛡️</div>
+        <h2 class="text-xl font-bold text-red-500">Admin Login</h2>
+        <p class="text-xs text-slate-400 mt-1">athravsharma2828@gmail.com</p>
       </div>
       <input type="email" id="adminEmail" value="athravsharma2828@gmail.com" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
       <input type="password" id="adminPass" value="123456789" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
@@ -28,7 +28,7 @@
     </div>
   </div>
 
-  <!-- LEFT SIDEBAR: Approvals & Contacts -->
+  <!-- LEFT SIDEBAR -->
   <div class="w-80 md:w-96 bg-[#111b21] border-r border-slate-800 flex flex-col h-full">
     <div class="p-4 bg-[#202c33] flex justify-between items-center border-b border-slate-700">
       <div>
@@ -41,19 +41,18 @@
       </div>
     </div>
 
-    <!-- Tab Filter -->
+    <!-- Tabs -->
     <div class="flex border-b border-slate-800 text-xs font-semibold">
       <button onclick="setTab('chats')" id="tabChats" class="flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400">Approved Chats</button>
-      <button onclick="setTab('approvals')" id="tabApprovals" class="flex-1 py-3 text-slate-400">Pending Users (<span id="pendingCount">0</span>)</button>
+      <button onclick="setTab('approvals')" id="tabApprovals" class="flex-1 py-3 text-slate-400">Pending (<span id="pendingCount">0</span>)</button>
     </div>
 
-    <!-- List Section -->
     <div id="listContainer" class="flex-1 overflow-y-auto divide-y divide-slate-800/40"></div>
   </div>
 
-  <!-- RIGHT PANEL: Live Chat -->
+  <!-- RIGHT PANEL -->
   <div class="flex-1 flex flex-col h-full bg-[#0b141a]">
-    <div id="chatHeader" class="bg-[#202c33] px-6 py-3 flex justify-between items-center border-b border-slate-800">
+    <div id="chatHeader" class="bg-[#202c33] px-6 py-3.5 flex justify-between items-center border-b border-slate-800">
       <div class="font-semibold text-sm" id="activeUserTitle">Select a user to chat</div>
       <div id="userStatusTag" class="text-xs"></div>
     </div>
@@ -61,7 +60,7 @@
     <div id="adminMsgBox" class="flex-1 wa-chat-bg p-6 overflow-y-auto space-y-3 flex flex-col"></div>
 
     <div class="bg-[#202c33] p-3 flex gap-3 items-center">
-      <input type="text" id="adminInput" placeholder="Type WhatsApp reply..." class="flex-1 bg-[#2a3942] px-4 py-3 rounded-full text-sm outline-none text-white focus:ring-1 focus:ring-emerald-500">
+      <input type="text" id="adminInput" placeholder="Type WhatsApp reply..." class="flex-1 bg-[#2a3942] px-4 py-3 rounded-full text-sm outline-none text-white focus:ring-1 focus:ring-emerald-500" onkeydown="if(event.key==='Enter') sendAdminReply()">
       <button onclick="sendAdminReply()" class="w-11 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white">➤</button>
     </div>
   </div>
@@ -69,9 +68,8 @@
   <audio id="adminTone" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
 
   <script>
-    // Apne credentials yahan dalein:
-    const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
-    const SUPABASE_KEY = "YOUR_ANON_KEY";
+    const SUPABASE_URL = "https://kqjzziybvkbkrlpemxdp.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__Fiz46xbWxj8ZQMSmCyo0Q_QxCPMzs2";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let activeUserId = null;
@@ -82,11 +80,13 @@
     async function checkAdmin() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
         if (prof && prof.role === 'admin') {
           document.getElementById('adminAuth').classList.add('hidden');
           loadData();
           listenRealtime();
+        } else {
+          document.getElementById('authErr').innerText = "Access Denied: Not an Admin";
         }
       }
     }
@@ -122,7 +122,7 @@
       const items = currentTab === 'approvals' ? pending : allProfiles.filter(p => p.is_approved);
 
       if (items.length === 0) {
-        list.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">No users found here</div>`;
+        list.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">Koi user nahi hai</div>`;
         return;
       }
 
@@ -133,7 +133,7 @@
         div.innerHTML = `
           <div>
             <div class="font-semibold text-sm text-slate-200">${u.email}</div>
-            <div class="text-[11px] ${u.is_approved ? 'text-emerald-400' : 'text-amber-400'}">${u.is_approved ? '🟢 Approved' : '⏳ Pending Approval'}</div>
+            <div class="text-[11px] ${u.is_approved ? 'text-emerald-400' : 'text-amber-400'}">${u.is_approved ? '🟢 Approved' : '⏳ Pending'}</div>
           </div>
           <div>
             ${!u.is_approved 
@@ -184,7 +184,7 @@
     }
 
     async function sendAdminReply() {
-      if (!activeUserId) return alert("Pehle left panel se user select karein!");
+      if (!activeUserId) return alert("Pehle kisi user ko select karein!");
       const input = document.getElementById('adminInput');
       const text = input.value.trim();
       if (!text) return;
@@ -199,7 +199,7 @@
     }
 
     async function openBroadcastModal() {
-      const text = prompt("Broadcast Alert Message likhein (Ye message Sabhi users ko jayega aur sound bajegi):");
+      const text = prompt("Broadcast Alert Message likhein (Sabhi users ke phone par sound bajegi):");
       if (!text) return;
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('messages').insert([{
@@ -211,7 +211,7 @@
     }
 
     function listenRealtime() {
-      supabase.channel('admin-room')
+      supabase.channel('admin-control-room')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadData())
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
           const msg = payload.new;
