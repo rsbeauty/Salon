@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Realtime Chat Admin</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>Realtime Chat Admin — Fixed</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>body{background:#0b141a}.chat-bg{background-color:#0b141a;background-image:radial-gradient(#1b2b34 .7px,transparent .7px);background-size:14px 14px}.scrollbar::-webkit-scrollbar{width:6px}.scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}.bubble{max-width:min(82%,620px);overflow-wrap:anywhere}</style>
 </head>
 <body class="min-h-screen text-slate-100">
@@ -12,7 +12,7 @@
 (() => {
  const SUPABASE_URL='https://kqjzziybvkbkrlpemxdp.supabase.co';
  const SUPABASE_ANON_KEY='sb_publishable__Fiz46xbWxj8ZQMSmCyo0Q_QxCPMzs2';
- const MASTER_PIN='123456789'; // UI gate only; not secure server-side authorization.
+ const MASTER_PIN='123456789'; // UI gate only; not secure server-side authorization.\n const ADMIN_ID='ADMIN'; // Requires public.messages.sender_id to be TEXT (see schema.sql).
  const db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY),app=document.getElementById('app');
  let tab='pending',selected=null,channel=null,profiles=[],seen=new Set();
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -55,19 +55,19 @@
  }
  function append(m,scroll=true){
   const box=document.getElementById('messages');if(!box||document.getElementById('m'+m.id))return;
-  const mine=m.sender_id==='ADMIN';
+  const mine=m.sender_id===ADMIN_ID;
   const div=document.createElement('div');div.id='m'+m.id;div.className='flex '+(mine?'justify-end':'justify-start');
   div.innerHTML=`<div class="bubble rounded-2xl px-4 py-2 shadow ${mine?'bg-emerald-800 text-emerald-50 rounded-br-sm':'bg-slate-700 text-slate-100 rounded-bl-sm'}"><div class="whitespace-pre-wrap">${esc(m.text)}</div><div class="text-[10px] text-slate-300/70 text-right mt-1">${time(m.created_at)}</div></div>`;box.appendChild(div);if(scroll)box.scrollTop=box.scrollHeight;
  }
  async function send(e){
   e.preventDefault();if(!selected){toast('Select an approved customer first.');return;}
   const input=document.getElementById('messageInput'),text=input.value.trim();if(!text)return;
-  const {error}=await db.from('messages').insert({sender_id:'ADMIN',receiver_id:selected.id,text});
+  const {error}=await db.from('messages').insert({sender_id:ADMIN_ID,receiver_id:selected.id,text});
   if(error){toast('Send failed: '+error.message);return;}input.value='';
  }
  async function broadcast(){
   const text=prompt('Enter the broadcast alert message:');if(!text?.trim())return;
-  const {error}=await db.from('messages').insert({sender_id:'ADMIN',receiver_id:null,text:text.trim()});
+  const {error}=await db.from('messages').insert({sender_id:ADMIN_ID,receiver_id:null,text:text.trim()});
   if(error){toast('Broadcast failed: '+error.message);return;}toast('Broadcast sent to connected clients.');
  }
  function toast(s){const t=document.getElementById('toast');if(!t)return;t.textContent=s;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3500);}
