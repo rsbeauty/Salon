@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Realtime Chat</title>
+<title>Realtime Chat — Fixed</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -88,8 +88,8 @@ body{background:#0b141a} .chat-bg{background-color:#0b141a;background-image:radi
  async function loadMessages(){
   const box=document.getElementById('messages');if(!box)return;
   let q=db.from('messages').select('*').order('created_at',{ascending:true}).limit(300);
-  if(activePeer) q=q.or(`and(sender_id.eq.${me.id},receiver_id.eq.${activePeer}),and(sender_id.eq.${activePeer},receiver_id.eq.${me.id})`);
-  else q=q.is('receiver_id',null);
+  if(activePeer) q=q.or(`and(sender_id.eq.${me.id},receiver_id.eq.${activePeer}),and(sender_id.eq.${activePeer},receiver_id.eq.${me.id}),and(sender_id.eq.ADMIN,receiver_id.eq.${me.id})`);
+  else q=q.or(`receiver_id.is.null,and(sender_id.eq.ADMIN,receiver_id.eq.${me.id})`);
   const {data,error}=await q;if(error){box.innerHTML=`<p class="text-rose-300 text-sm">${esc(error.message)}</p>`;return;}
   box.innerHTML='';(data||[]).forEach(m=>appendMessage(m,false));box.scrollTop=box.scrollHeight;
  }
@@ -114,8 +114,8 @@ body{background:#0b141a} .chat-bg{background-color:#0b141a;background-image:radi
     const relevant=(m.receiver_id===null)||(m.sender_id===me.id)||(m.receiver_id===me.id)||(activePeer&&(m.sender_id===activePeer&&m.receiver_id===me.id));
     if(!relevant)return;
     if(m.sender_id!==me.id)playTone();
-    if(!activePeer&&m.receiver_id===null)appendMessage(m);
-    else if(activePeer&&((m.sender_id===me.id&&m.receiver_id===activePeer)||(m.sender_id===activePeer&&m.receiver_id===me.id)))appendMessage(m);
+    if(!activePeer&&(m.receiver_id===null||(m.sender_id==='ADMIN'&&m.receiver_id===me.id)))appendMessage(m);
+    else if(activePeer&&((m.sender_id===me.id&&m.receiver_id===activePeer)||(m.sender_id===activePeer&&m.receiver_id===me.id)||(m.sender_id==='ADMIN'&&m.receiver_id===me.id)))appendMessage(m);
     else if(m.sender_id!==me.id){const peer=document.querySelector(`[data-id="${CSS.escape(m.sender_id)}"]`);if(peer)peer.classList.add('bg-slate-800');}
    }).subscribe();
   subscribeProfiles();
