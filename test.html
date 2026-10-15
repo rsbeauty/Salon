@@ -2,23 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>System Diagnostic & Fix Tool</title>
+  <title>Supabase Auto Test</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 flex flex-col items-center">
-
-  <div class="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
-    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
-      <div>
-        <h1 class="text-xl font-bold text-emerald-400">⚡ Live Diagnostic Test Page</h1>
-        <p class="text-xs text-slate-400">Supabase connection, Admin Auth & Database Verifier</p>
-      </div>
-      <button onclick="testAudio()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1">
-        🔊 Test Sound
-      </button>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 flex flex-col items-center justify-center font-mono text-xs">
+  <div class="max-w-lg w-full bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+    <h2 class="text-base font-bold text-emerald-400">⚡ Auto Admin Creator & Verifier</h2>
+    <div class="bg-black/50 p-3 rounded-lg text-slate-300">
+      <div>Target: <b class="text-white">athravsharma2828@gmail.com</b></div>
+      <div>Pass: <b class="text-white">123456789</b></div>
     </div>
+    <div class="flex gap-2">
+      <button onclick="runTest()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2.5 rounded-lg font-bold text-white">1. Verify / Create Admin</button>
+      <button onclick="playTest()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 rounded-lg font-bold text-white">🔊 Play Sound</button>
+    </div>
+    <div id="logs" class="bg-black p-3 h-48 overflow-y-auto rounded-lg text-slate-400 space-y-1"></div>
+  </div>
 
-    <!-- Credentials Status -->
-    <div class="grid grid-cols-1
+  <audio id="tone" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+
+  <script>
+    const SUPABASE_URL = "https://kqjzziybvkbkrlpemxdp.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__Fiz46xbWxj8ZQMSmCyo0Q_QxCPMzs2";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    function log(msg, color="text-slate-300") {
+      const box = document.getElementById('logs');
+      box.innerHTML += `<div class="${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function playTest() {
+      const t = document.getElementById('tone');
+      t.currentTime = 0;
+      t.play().then(() => log("Sound played!", "text-emerald-400")).catch(e => log(e.message, "text-red-400"));
+    }
+
+    async function runTest() {
+      log("Testing connection...");
+      const email = "athravsharma2828@gmail.com";
+      const password = "123456789";
+
+      let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error && error.message.includes("Invalid login credentials")) {
+        log("User nahi mila. Auto-creating user via API...", "text-amber-400");
+        const res = await supabase.auth.signUp({ email, password });
+        if (res.error) return log("Signup error: " + res.error.message, "text-red-400");
+        log("User successfully created!", "text-emerald-400");
+        data = res.data;
+      } else if (error) {
+        return log("Login error: " + error.message, "text-red-400");
+      }
+
+      log("Login Active! User ID: " + data.user.id, "text-emerald-400");
+      
+      const { data: prof, error: pErr } = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+      if (pErr) return log("Profile query error: " + pErr.message, "text-red-400");
+
+      if (!prof) {
+        log("Profile record missing! SQL Script me diya gaya trigger run karein.", "text-amber-400");
+      } else {
+        log(`Profile Verified: Role='${prof.role}', Approved='${prof.is_approved}'`, "text-emerald-400 font-bold");
+        playTest();
+      }
+    }
+  </script>
+</body>
+</html>
