@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase 1-Click Setup & Test</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-8 flex justify-center items-center font-sans">
+
+  <div class="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div>
+        <h1 class="text-xl font-bold text-emerald-400">⚡ 1-Click Supabase Initializer</h1>
+        <p class="text-xs text-slate-400">URL & Key paste karein aur direct test karein</p>
+      </div>
+      <button onclick="playTestTone()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1">
+        🔊 Test Sound
+      </button>
+    </div>
+
+    <!-- Credentials Input Box -->
+    <div class="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+      <div>
+        <label class="block text-slate-400 mb-1 font-semibold">Project URL:</label>
+        <input type="text" id="sbUrl" placeholder="https://xxxxxxxx.supabase.co" class="w-full bg-slate-900 border border-slate-700 px-3 py-2 rounded-lg text-emerald-400 font-mono outline-none focus:border-emerald-500">
+      </div>
+      <div>
+        <label class="block text-slate-400 mb-1 font-semibold">Anon Public Key (eyJhbGciOi...):</label>
+        <textarea id="sbKey" rows="2" placeholder="Paste your anon public key here..." class="w-full bg-slate-900 border border-slate-700 px-3 py-2 rounded-lg text-emerald-400 font-mono outline-none focus:border-emerald-500 resize-none"></textarea>
+      </div>
+      <button onclick="saveAndConnect()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition shadow-md">
+        🚀 Save & Test Connection
+      </button>
+    </div>
+
+    <!-- Admin Account Status -->
+    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+      <div>
+        <div class="text-slate-400">Target Admin:</div>
+        <div class="font-bold text-white font-mono">athravsharma2828@gmail.com</div>
+        <div class="text-[11px] text-slate-400">Default Password: <span class="font-mono text-slate-200">123456789</span></div>
+      </div>
+      <button onclick="autoCreateOrLoginAdmin()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2.5 rounded-lg font-bold shadow text-xs">
+        👤 Auto-Verify Admin
+      </button>
+    </div>
+
+    <!-- Terminal Output -->
+    <div class="space-y-1">
+      <div class="flex justify-between text-xs text-slate-400">
+        <span>System Diagnostics Output:</span>
+        <button onclick="document.getElementById('logs').innerHTML=''" class="hover:text-slate-200">Clear</button>
+      </div>
+      <div id="logs" class="bg-black/90 font-mono text-xs p-3.5 rounded-xl border border-slate-800 h-44 overflow-y-auto space-y-1 text-slate-300">
+        <div class="text-slate-500">// Ready. Paste credentials above and click "Save & Test Connection".</div>
+      </div>
+    </div>
+
+  </div>
+
+  <audio id="tone" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+
+  <script>
+    let supabase = null;
+    const tone = document.getElementById('tone');
+
+    // Auto-load previously saved credentials
+    window.addEventListener('load', () => {
+      const savedUrl = localStorage.getItem('MY_SB_URL');
+      const savedKey = localStorage.getItem('MY_SB_KEY');
+      if (savedUrl && savedKey) {
+        document.getElementById('sbUrl').value = savedUrl;
+        document.getElementById('sbKey').value = savedKey;
+        initClient(savedUrl, savedKey);
+        writeLog("Loaded saved credentials from local storage.", "info");
+      }
+    });
+
+    function writeLog(text, type = 'info') {
+      const box = document.getElementById('logs');
+      const row = document.createElement('div');
+      const time = new Date().toLocaleTimeString();
+      let color = 'text-slate-300';
+      if (type === 'success') color = 'text-emerald-400 font-bold';
+      if (type === 'error') color = 'text-red-400 font-bold';
+      if (type === 'warn') color = 'text-amber-400 font-semibold';
+      row.className = color;
+      row.innerText = `[${time}] ${text}`;
+      box.appendChild(row);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function playTestTone() {
+      tone.currentTime = 0;
+      tone.play()
+        .then(() => writeLog("🔊 Sound Alert Played Successfully!", "success"))
+        .catch(e => writeLog("Sound Play Blocked: " + e.message, "error"));
+    }
+
+    function initClient(url, key) {
+      try {
+        supabase = window.supabase.createClient(url.trim(), key.trim());
+      } catch (err) {
+        writeLog("Client creation failed: " + err.message, "error");
+      }
+    }
+
+    async function saveAndConnect() {
+      const url = document.getElementById('sbUrl').value.trim();
+      const key = document.getElementById('sbKey').value.trim();
+
+      if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+        return writeLog("❌ Project URL galat hai! (Format: https://xxxxxx.supabase.co)", "error");
+      }
+      if (!key.startsWith('ey') || key.length < 50) {
+        return writeLog("❌ Anon Key galat lag rahi hai! (ey se start honi chahiye)", "error");
+      }
+
+      localStorage.setItem('MY_SB_URL', url);
+      localStorage.setItem('MY_SB_KEY', key);
+      initClient(url, key);
+
+      writeLog("Saved credentials! Testing database connection...", "info");
+
+      try {
+        const { data, error } = await supabase.from('profiles').select('id').limit(1);
+        if (error) {
+          writeLog("⚠️ Supabase Connected, par Table Error: " + error.message, "warn");
+          writeLog("👉 Supabase me 'supabase_setup.sql' run kiya hai ya nahi check karein.", "warn");
+        } else {
+          writeLog("✅ DATABASE HEALTHY: Profiles table reachable & working!", "success");
+        }
+      } catch (e) {
+        writeLog("❌ Connection Failed: " + e.message, "error");
+      }
+    }
+
+    async function autoCreateOrLoginAdmin() {
+      if (!supabase) return writeLog("Pehle credentials save karein!", "error");
+
+      const email = "athravsharma2828@gmail.com";
+      const pass = "123456789";
+
+      writeLog(`Checking admin account for ${email}...`, "info");
+
+      // 1. Try Login
+      let { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: pass
+      });
+
+      // 2. If user doesn't exist, try Signup
+      if (loginErr && loginErr.message.toLowerCase().includes("invalid login credentials")) {
+        writeLog("User auth me nahi mila, auto-creating account...", "warn");
+        const { data: signData, error: signErr } = await supabase.auth.signUp({
+          email: email,
+          password: pass
+        });
+        if (signErr) {
+          return writeLog("Sign Up Failed: " + signErr.message, "error");
+        }
+        writeLog("✅ Admin Auth User Created!", "success");
+        loginData = signData;
+      } else if (loginErr) {
+        return writeLog("Login Error: " + loginErr.message, "error");
+      }
+
+      // 3. Verify Session & Profile
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        return writeLog("❌ Session nahi mila. Check karein Supabase Dashboard me 'Confirm email' OFF hai ya nahi.", "error");
+      }
+
+      writeLog("✅ Login Session Active! ID: " + session.user.id, "success");
+
+      // Check Profile in DB
+      const { data: profile, error: pErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (pErr) {
+        return writeLog("Profile query error: " + pErr.message, "error");
+      }
+
+      if (!profile) {
+        writeLog("⚠️ Auth ban gaya par 'profiles' table me record nahi mila. Trigger run nahi hua.", "warn");
+      } else {
+        writeLog(`🎉 SUCCESS: Admin Profile Ready! Role='${profile.role}', Approved='${profile.is_approved}'`, "success");
+        playTestTone();
+      }
+    }
+  </script>
+</body>
+</html>
