@@ -24,7 +24,7 @@
       <input type="email" id="adminEmail" value="athravsharma2828@gmail.com" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
       <input type="password" id="adminPass" value="123456789" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
       <button onclick="adminLogin()" class="w-full bg-red-600 hover:bg-red-500 py-3 rounded-lg font-bold text-sm transition">Login</button>
-      <div id="authErr" class="text-xs text-red-400 text-center"></div>
+      <div id="authErr" class="text-xs text-red-400 text-center font-semibold"></div>
     </div>
   </div>
 
@@ -79,25 +79,35 @@
 
     async function checkAdmin() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-        if (prof && prof.role === 'admin') {
-          document.getElementById('adminAuth').classList.add('hidden');
-          loadData();
-          listenRealtime();
-        } else {
-          document.getElementById('authErr').innerText = "Access Denied: Not an Admin";
-        }
+      if (session && session.user.email === 'athravsharma2828@gmail.com') {
+        document.getElementById('adminAuth').classList.add('hidden');
+        loadData();
+        listenRealtime();
       }
     }
     checkAdmin();
 
     async function adminLogin() {
+      const errBox = document.getElementById('authErr');
+      errBox.innerText = "Checking credentials...";
+      
       const email = document.getElementById('adminEmail').value.trim();
       const password = document.getElementById('adminPass').value.trim();
+
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return document.getElementById('authErr').innerText = error.message;
-      checkAdmin();
+      
+      if (error) {
+        errBox.innerText = "❌ " + error.message;
+        return;
+      }
+
+      if (data.user && data.user.email === 'athravsharma2828@gmail.com') {
+        document.getElementById('adminAuth').classList.add('hidden');
+        loadData();
+        listenRealtime();
+      } else {
+        errBox.innerText = "❌ Access Denied: Not Admin Email";
+      }
     }
 
     async function loadData() {
