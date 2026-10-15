@@ -1,9 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Supabase Connection Test</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Diagnostic & Fix Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body style="font-family: sans-serif; padding: 40px; background: #111; color: #fff;">
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 flex flex-col items-center">
 
-  <h2>Admin Login Direct
+  <div class="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div>
+        <h1 class="text-xl font-bold text-emerald-400">⚡ Live Diagnostic Test Page</h1>
+        <p class="text-xs text-slate-400">Supabase connection, Admin Auth & Database Verifier</p>
+      </div>
+      <button onclick="testAudio()" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1">
+        🔊 Test Sound
+      </button>
+    </div>
+
+    <!-- Credentials Status -->
+    <div class="grid grid-cols-1
