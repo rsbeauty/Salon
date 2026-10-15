@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin WhatsApp Control Panel</title>
+  <title>Admin Portal - WhatsApp & Sound Alert</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -13,45 +13,55 @@
 </head>
 <body class="bg-[#0c1317] text-slate-100 h-screen flex overflow-hidden">
 
-  <!-- ADMIN AUTH MODAL (Agar Logged in na ho) -->
-  <div id="adminAuth" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-    <div class="bg-[#111b21] p-8 rounded-2xl w-96 border border-slate-800 space-y-4">
-      <h2 class="text-xl font-bold text-red-500 text-center">🛡️ Admin Portal</h2>
-      <input type="email" id="adminEmail" placeholder="Admin Email" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white">
-      <input type="password" id="adminPass" placeholder="Admin Password" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white">
-      <button onclick="adminLogin()" class="w-full bg-red-600 hover:bg-red-500 py-3 rounded-lg font-bold text-sm">Login as Admin</button>
+  <!-- ADMIN AUTH MODAL -->
+  <div id="adminAuth" class="fixed inset-0 bg-black/85 flex items-center justify-center z-50">
+    <div class="bg-[#111b21] p-8 rounded-2xl w-96 border border-slate-800 space-y-4 shadow-2xl">
+      <div class="text-center">
+        <div class="text-3xl mb-1">🛡️</div>
+        <h2 class="text-xl font-bold text-red-500">Admin Control Login</h2>
+        <p class="text-xs text-slate-400">athravsharma2828@gmail.com</p>
+      </div>
+      <input type="email" id="adminEmail" value="athravsharma2828@gmail.com" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
+      <input type="password" id="adminPass" value="123456789" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
+      <button onclick="adminLogin()" class="w-full bg-red-600 hover:bg-red-500 py-3 rounded-lg font-bold text-sm transition">Login</button>
       <div id="authErr" class="text-xs text-red-400 text-center"></div>
     </div>
   </div>
 
-  <!-- LEFT SIDEBAR: User Approvals + Contacts -->
+  <!-- LEFT SIDEBAR: Approvals & Contacts -->
   <div class="w-80 md:w-96 bg-[#111b21] border-r border-slate-800 flex flex-col h-full">
-    <!-- Top Profile & Broadcast -->
     <div class="p-4 bg-[#202c33] flex justify-between items-center border-b border-slate-700">
-      <div class="font-bold text-sm text-red-400">ADMIN CONTROL</div>
-      <button onclick="openBroadcastModal()" class="bg-red-600 hover:bg-red-500 text-xs px-3 py-1.5 rounded-md font-bold shadow-lg">📢 Broadcast Alert</button>
+      <div>
+        <div class="font-bold text-xs text-red-400 tracking-wider">SUPER ADMIN</div>
+        <div class="text-[11px] text-slate-400">athravsharma2828</div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="openBroadcastModal()" class="bg-red-600 hover:bg-red-500 text-xs px-2.5 py-1.5 rounded-md font-bold shadow">📢 Alert</button>
+        <button onclick="adminLogout()" class="text-xs text-slate-400 hover:text-white bg-[#2a3942] px-2 py-1.5 rounded">Exit</button>
+      </div>
     </div>
 
-    <!-- Tab Filter: Approvals vs Chats -->
+    <!-- Tab Filter -->
     <div class="flex border-b border-slate-800 text-xs font-semibold">
-      <button onclick="setTab('chats')" id="tabChats" class="flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400">Active Chats</button>
-      <button onclick="setTab('approvals')" id="tabApprovals" class="flex-1 py-3 text-slate-400">Approval Requests (<span id="pendingCount">0</span>)</button>
+      <button onclick="setTab('chats')" id="tabChats" class="flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400">Approved Chats</button>
+      <button onclick="setTab('approvals')" id="tabApprovals" class="flex-1 py-3 text-slate-400">Pending Users (<span id="pendingCount">0</span>)</button>
     </div>
 
     <!-- List Section -->
     <div id="listContainer" class="flex-1 overflow-y-auto divide-y divide-slate-800/40"></div>
   </div>
 
-  <!-- RIGHT PANEL: Live Active Chat -->
+  <!-- RIGHT PANEL: Live Chat -->
   <div class="flex-1 flex flex-col h-full bg-[#0b141a]">
-    <div id="chatHeader" class="bg-[#202c33] px-6 py-3.5 flex justify-between items-center border-b border-slate-800">
+    <div id="chatHeader" class="bg-[#202c33] px-6 py-3 flex justify-between items-center border-b border-slate-800">
       <div class="font-semibold text-sm" id="activeUserTitle">Select a user to chat</div>
+      <div id="userStatusTag" class="text-xs"></div>
     </div>
 
     <div id="adminMsgBox" class="flex-1 wa-chat-bg p-6 overflow-y-auto space-y-3 flex flex-col"></div>
 
     <div class="bg-[#202c33] p-3 flex gap-3 items-center">
-      <input type="text" id="adminInput" placeholder="Reply to selected user..." class="flex-1 bg-[#2a3942] px-4 py-3 rounded-full text-sm outline-none text-white focus:ring-1 focus:ring-emerald-500">
+      <input type="text" id="adminInput" placeholder="Type WhatsApp reply..." class="flex-1 bg-[#2a3942] px-4 py-3 rounded-full text-sm outline-none text-white focus:ring-1 focus:ring-emerald-500">
       <button onclick="sendAdminReply()" class="w-11 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white">➤</button>
     </div>
   </div>
@@ -59,6 +69,7 @@
   <audio id="adminTone" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
 
   <script>
+    // Apne credentials yahan dalein:
     const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
     const SUPABASE_KEY = "YOUR_ANON_KEY";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -82,8 +93,8 @@
     checkAdmin();
 
     async function adminLogin() {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPass').value;
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPass').value.trim();
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) return document.getElementById('authErr').innerText = error.message;
       checkAdmin();
@@ -110,6 +121,11 @@
 
       const items = currentTab === 'approvals' ? pending : allProfiles.filter(p => p.is_approved);
 
+      if (items.length === 0) {
+        list.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">No users found here</div>`;
+        return;
+      }
+
       items.forEach(u => {
         const div = document.createElement('div');
         div.className = `p-4 flex items-center justify-between cursor-pointer hover:bg-[#202c33] transition ${activeUserId === u.id ? 'bg-[#202c33]' : ''}`;
@@ -117,12 +133,12 @@
         div.innerHTML = `
           <div>
             <div class="font-semibold text-sm text-slate-200">${u.email}</div>
-            <div class="text-[11px] text-slate-400">${u.is_approved ? '🟢 Active User' : '⏳ Waiting Approval'}</div>
+            <div class="text-[11px] ${u.is_approved ? 'text-emerald-400' : 'text-amber-400'}">${u.is_approved ? '🟢 Approved' : '⏳ Pending Approval'}</div>
           </div>
           <div>
-            ${currentTab === 'approvals' 
-              ? `<button onclick="toggleApprove('${u.id}', true)" class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-500">Approve</button>`
-              : `<button onclick="toggleApprove('${u.id}', false)" class="text-xs text-red-400 hover:underline">Revoke</button>`}
+            ${!u.is_approved 
+              ? `<button onclick="toggleApprove('${u.id}', true)" class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-500 shadow">Approve</button>`
+              : `<button onclick="toggleApprove('${u.id}', false)" class="text-xs text-red-400 hover:underline">Block</button>`}
           </div>
         `;
         div.onclick = (e) => {
@@ -139,7 +155,8 @@
 
     async function selectUser(u) {
       activeUserId = u.id;
-      document.getElementById('activeUserTitle').innerText = `Chatting with: ${u.email}`;
+      document.getElementById('activeUserTitle').innerText = `Chat: ${u.email}`;
+      document.getElementById('userStatusTag').innerHTML = u.is_approved ? `<span class="text-emerald-400">● Active</span>` : `<span class="text-amber-400">● Pending</span>`;
       renderList();
       loadActiveMessages();
     }
@@ -167,7 +184,7 @@
     }
 
     async function sendAdminReply() {
-      if (!activeUserId) return alert("Select a user first!");
+      if (!activeUserId) return alert("Pehle left panel se user select karein!");
       const input = document.getElementById('adminInput');
       const text = input.value.trim();
       if (!text) return;
@@ -182,15 +199,15 @@
     }
 
     async function openBroadcastModal() {
-      const text = prompt("Enter Broadcast Alert Message (Plays sound for ALL users):");
+      const text = prompt("Broadcast Alert Message likhein (Ye message Sabhi users ko jayega aur sound bajegi):");
       if (!text) return;
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('messages').insert([{
         sender_id: user.id,
-        receiver_id: null, // Broadcast to all
+        receiver_id: null,
         text: `📢 ALERT: ${text}`
       }]);
-      alert("Broadcast alert sent with tone trigger!");
+      alert("Broadcast Alert bhej diya gaya!");
     }
 
     function listenRealtime() {
@@ -205,6 +222,11 @@
           adminTone.play().catch(() => {});
         })
         .subscribe();
+    }
+
+    async function adminLogout() {
+      await supabase.auth.signOut();
+      location.reload();
     }
   </script>
 </body>
