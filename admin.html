@@ -1,289 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin WhatsApp Control Panel</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    .wa-bg { background-color: #111b21; }
-    .wa-chat-bg { background-color: #0b141a; background-image: radial-gradient(#202c33 1px, transparent 1px); background-size: 20px 20px; }
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Realtime Chat Admin</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>body{background:#0b141a}.chat-bg{background-color:#0b141a;background-image:radial-gradient(#1b2b34 .7px,transparent .7px);background-size:14px 14px}.scrollbar::-webkit-scrollbar{width:6px}.scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:8px}.bubble{max-width:min(82%,620px);overflow-wrap:anywhere}</style>
 </head>
-<body class="bg-[#0c1317] text-slate-100 h-screen flex overflow-hidden">
-
-  <!-- ADMIN AUTH MODAL -->
-  <div id="adminAuth" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-    <div class="bg-[#111b21] p-6 sm:p-8 rounded-2xl w-full max-w-md border border-slate-800 space-y-4 shadow-2xl">
-      <div class="text-center">
-        <div class="text-4xl mb-2">🛡️</div>
-        <h2 class="text-xl font-bold text-red-500">Admin Live Control Login</h2>
-        <p class="text-xs text-slate-400 mt-1 font-mono">athravsharma2828@gmail.com</p>
-      </div>
-
-      <div class="space-y-3">
-        <input type="email" id="adminEmail" value="athravsharma2828@gmail.com" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500 font-mono">
-        <input type="password" id="adminPass" value="123456789" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500 font-mono">
-        
-        <div class="flex gap-2">
-          <button onclick="adminLogin()" class="flex-1 bg-red-600 hover:bg-red-500 py-3 rounded-lg font-bold text-sm transition">
-            1. Try Login
-          </button>
-          <button onclick="forceCreateAndLogin()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-3 rounded-lg font-bold text-sm transition text-white">
-            2. Auto-Fix / Re-Register
-          </button>
-        </div>
-      </div>
-
-      <!-- Live Log Screen -->
-      <div class="space-y-1 pt-2">
-        <div class="text-[11px] text-slate-400 font-semibold">Live Server Response:</div>
-        <div id="authErr" class="text-xs font-mono bg-black/70 p-3 rounded-lg border border-slate-800 text-amber-300 min-h-[60px] whitespace-pre-wrap break-all">
-Ready. Click "1. Try Login" or "2. Auto-Fix / Re-Register".
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- LEFT SIDEBAR -->
-  <div class="w-80 md:w-96 bg-[#111b21] border-r border-slate-800 flex flex-col h-full">
-    <div class="p-4 bg-[#202c33] flex justify-between items-center border-b border-slate-700">
-      <div>
-        <div class="font-bold text-xs text-red-400 tracking-wider">SUPER ADMIN</div>
-        <div class="text-[11px] text-slate-400">athravsharma2828</div>
-      </div>
-      <div class="flex gap-2">
-        <button onclick="openBroadcastModal()" class="bg-red-600 hover:bg-red-500 text-xs px-2.5 py-1.5 rounded-md font-bold shadow">📢 Alert</button>
-        <button onclick="adminLogout()" class="text-xs text-slate-400 hover:text-white bg-[#2a3942] px-2 py-1.5 rounded">Exit</button>
-      </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="flex border-b border-slate-800 text-xs font-semibold">
-      <button onclick="setTab('chats')" id="tabChats" class="flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400">Approved Chats</button>
-      <button onclick="setTab('approvals')" id="tabApprovals" class="flex-1 py-3 text-slate-400">Pending (<span id="pendingCount">0</span>)</button>
-    </div>
-
-    <div id="listContainer" class="flex-1 overflow-y-auto divide-y divide-slate-800/40"></div>
-  </div>
-
-  <!-- RIGHT PANEL -->
-  <div class="flex-1 flex flex-col h-full bg-[#0b141a]">
-    <div id="chatHeader" class="bg-[#202c33] px-6 py-3.5 flex justify-between items-center border-b border-slate-800">
-      <div class="font-semibold text-sm" id="activeUserTitle">Select a user to chat</div>
-      <div id="userStatusTag" class="text-xs"></div>
-    </div>
-
-    <div id="adminMsgBox" class="flex-1 wa-chat-bg p-6 overflow-y-auto space-y-3 flex flex-col"></div>
-
-    <div class="bg-[#202c33] p-3 flex gap-3 items-center">
-      <input type="text" id="adminInput" placeholder="Type WhatsApp reply..." class="flex-1 bg-[#2a3942] px-4 py-3 rounded-full text-sm outline-none text-white focus:ring-1 focus:ring-emerald-500" onkeydown="if(event.key==='Enter') sendAdminReply()">
-      <button onclick="sendAdminReply()" class="w-11 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center text-white">➤</button>
-    </div>
-  </div>
-
-  <audio id="adminTone" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
-
-  <script>
-    const SUPABASE_URL = "https://kqjzziybvkbkrlpemxdp.supabase.co";
-    const SUPABASE_KEY = "sb_publishable__Fiz46xbWxj8ZQMSmCyo0Q_QxCPMzs2";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    let activeUserId = null;
-    let allProfiles = [];
-    let currentTab = 'chats';
-    const adminTone = document.getElementById('adminTone');
-
-    function showStatus(text, color = "text-amber-300") {
-      const box = document.getElementById('authErr');
-      box.className = `text-xs font-mono bg-black/70 p-3 rounded-lg border border-slate-800 whitespace-pre-wrap break-all ${color}`;
-      box.innerText = `[${new Date().toLocaleTimeString()}] ${text}`;
-    }
-
-    async function checkAdmin() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user.email === 'athravsharma2828@gmail.com') {
-        document.getElementById('adminAuth').classList.add('hidden');
-        loadData();
-        listenRealtime();
-      }
-    }
-    checkAdmin();
-
-    async function adminLogin() {
-      showStatus("Connecting to Supabase Auth...", "text-blue-400");
-      
-      const email = document.getElementById('adminEmail').value.trim();
-      const password = document.getElementById('adminPass').value.trim();
-
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        showStatus("LOGIN ERROR:\n" + error.message + "\n\n👉 Click green button '2. Auto-Fix / Re-Register' to create account fresh.", "text-red-400");
-        return;
-      }
-
-      if (data.user && data.user.email === 'athravsharma2828@gmail.com') {
-        showStatus("SUCCESS! Logging in...", "text-emerald-400");
-        setTimeout(() => {
-          document.getElementById('adminAuth').classList.add('hidden');
-          loadData();
-          listenRealtime();
-        }, 500);
-      } else {
-        showStatus("Access Denied: Logged in user is not admin email.", "text-red-400");
-      }
-    }
-
-    // Force register admin if user does not exist in Auth
-    async function forceCreateAndLogin() {
-      showStatus("Creating user via Supabase SignUp API...", "text-blue-400");
-      const email = document.getElementById('adminEmail').value.trim();
-      const password = document.getElementById('adminPass').value.trim();
-
-      const { data, error } = await supabase.auth.signUp({
-        email: email,
-        password: password
-      });
-
-      if (error) {
-        showStatus("Auto-Fix Error:\n" + error.message, "text-red-400");
-        return;
-      }
-
-      showStatus("Account created! Now attempting login...", "text-blue-400");
-      await adminLogin();
-    }
-
-    async function loadData() {
-      const { data } = await supabase.from('profiles').select('*').neq('role', 'admin').order('created_at', { ascending: false });
-      allProfiles = data || [];
-      renderList();
-    }
-
-    function setTab(tab) {
-      currentTab = tab;
-      document.getElementById('tabChats').className = tab === 'chats' ? 'flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400' : 'flex-1 py-3 text-slate-400';
-      document.getElementById('tabApprovals').className = tab === 'approvals' ? 'flex-1 py-3 text-emerald-400 border-b-2 border-emerald-400' : 'flex-1 py-3 text-slate-400';
-      renderList();
-    }
-
-    function renderList() {
-      const list = document.getElementById('listContainer');
-      list.innerHTML = '';
-      const pending = allProfiles.filter(p => !p.is_approved);
-      document.getElementById('pendingCount').innerText = pending.length;
-
-      const items = currentTab === 'approvals' ? pending : allProfiles.filter(p => p.is_approved);
-
-      if (items.length === 0) {
-        list.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">Koi user nahi hai</div>`;
-        return;
-      }
-
-      items.forEach(u => {
-        const div = document.createElement('div');
-        div.className = `p-4 flex items-center justify-between cursor-pointer hover:bg-[#202c33] transition ${activeUserId === u.id ? 'bg-[#202c33]' : ''}`;
-        
-        div.innerHTML = `
-          <div>
-            <div class="font-semibold text-sm text-slate-200">${u.email}</div>
-            <div class="text-[11px] ${u.is_approved ? 'text-emerald-400' : 'text-amber-400'}">${u.is_approved ? '🟢 Approved' : '⏳ Pending'}</div>
-          </div>
-          <div>
-            ${!u.is_approved 
-              ? `<button onclick="toggleApprove('${u.id}', true)" class="bg-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-500 shadow">Approve</button>`
-              : `<button onclick="toggleApprove('${u.id}', false)" class="text-xs text-red-400 hover:underline">Block</button>`}
-          </div>
-        `;
-        div.onclick = (e) => {
-          if (e.target.tagName !== 'BUTTON') selectUser(u);
-        };
-        list.appendChild(div);
-      });
-    }
-
-    async function toggleApprove(userId, status) {
-      await supabase.from('profiles').update({ is_approved: status }).eq('id', userId);
-      loadData();
-    }
-
-    async function selectUser(u) {
-      activeUserId = u.id;
-      document.getElementById('activeUserTitle').innerText = `Chat: ${u.email}`;
-      document.getElementById('userStatusTag').innerHTML = u.is_approved ? `<span class="text-emerald-400">● Active</span>` : `<span class="text-amber-400">● Pending</span>`;
-      renderList();
-      loadActiveMessages();
-    }
-
-    async function loadActiveMessages() {
-      const box = document.getElementById('adminMsgBox');
-      box.innerHTML = '';
-      const { data: msgs } = await supabase.from('messages')
-        .select('*')
-        .or(`and(sender_id.eq.${activeUserId}),and(receiver_id.eq.${activeUserId})`)
-        .order('created_at', { ascending: true });
-
-      if (msgs) msgs.forEach(renderAdminBubble);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function renderAdminBubble(m) {
-      const box = document.getElementById('adminMsgBox');
-      const isMe = m.sender_id !== activeUserId;
-      const div = document.createElement('div');
-      div.className = `max-w-[70%] px-3.5 py-2 rounded-xl text-sm ${isMe ? 'ml-auto bg-[#005c4b] text-white rounded-tr-none' : 'mr-auto bg-[#202c33] text-white rounded-tl-none'}`;
-      div.innerHTML = `<div>${m.text}</div><div class="text-[10px] text-slate-400 text-right mt-1">${new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    async function sendAdminReply() {
-      if (!activeUserId) return alert("Pehle kisi user ko select karein!");
-      const input = document.getElementById('adminInput');
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('messages').insert([{
-        sender_id: user.id,
-        receiver_id: activeUserId,
-        text
-      }]);
-    }
-
-    async function openBroadcastModal() {
-      const text = prompt("Broadcast Alert Message likhein (Sabhi users ke phone par sound bajegi):");
-      if (!text) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('messages').insert([{
-        sender_id: user.id,
-        receiver_id: null,
-        text: `📢 ALERT: ${text}`
-      }]);
-      alert("Broadcast Alert bhej diya gaya!");
-    }
-
-    function listenRealtime() {
-      supabase.channel('admin-control-room')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => loadData())
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-          const msg = payload.new;
-          if (activeUserId && (msg.sender_id === activeUserId || msg.receiver_id === activeUserId)) {
-            renderAdminBubble(msg);
-          }
-          adminTone.currentTime = 0;
-          adminTone.play().catch(() => {});
-        })
-        .subscribe();
-    }
-
-    async function adminLogout() {
-      await supabase.auth.signOut();
-      location.reload();
-    }
-  </script>
-</body>
-</html>
+<body class="min-h-screen text-slate-100">
+<div id="app" class="min-h-screen flex items-center justify-center p-4"></div>
+<audio id="tone" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"></audio>
+<script>
+(() => {
+ const SUPABASE_URL='https://kqjzziybvkbkrlpemxdp.supabase.co';
+ const SUPABASE_ANON_KEY='sb_publishable__Fiz46xbWxj8ZQMSmCyo0Q_QxCPMzs2';
+ const MASTER_PIN='123456789'; // UI gate only; not secure server-side authorization.
+ const db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY),app=document.getElementById('app');
+ let tab='pending',selected=null,channel=null,profiles=[],seen=new Set();
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const time=s=>new Date(s).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+ function login(){
+  app.innerHTML=`<section class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-8 shadow-2xl"><div class="text-4xl mb-4">🔐</div><h1 class="text-2xl font-bold">Admin Dashboard</h1><p class="text-slate-400 mt-2 mb-6">Enter the master PIN to continue.</p><form id="pinForm" class="space-y-3"><input id="pin" type="password" inputmode="numeric" required placeholder="Master PIN" class="w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3"><button class="w-full rounded-xl bg-emerald-500 text-slate-950 font-bold py-3">Unlock dashboard</button></form><p id="err" class="text-rose-300 text-sm mt-3"></p><p class="text-xs text-slate-500 mt-5">The browser PIN is a demo gate, not production authentication. Secure admin actions with Supabase Auth and server-side policies.</p></section>`;
+  document.getElementById('pinForm').onsubmit=e=>{e.preventDefault();if(document.getElementById('pin').value===MASTER_PIN){sessionStorage.setItem('rtchat_admin_unlocked','1');dashboard();}else document.getElementById('err').textContent='Incorrect PIN.';};
+ }
+ async function dashboard(){
+  app.innerHTML=`<main class="w-full max-w-7xl h-[92vh] min-h-[580px] rounded-2xl overflow-hidden border border-slate-700 shadow-2xl flex bg-slate-900"><aside class="w-80 md:w-96 border-r border-slate-700 flex flex-col"><header class="bg-slate-800 p-4 flex items-center justify-between"><div><h1 class="font-bold text-lg">Chat Admin</h1><p class="text-xs text-slate-400">Realtime control center</p></div><button id="lock" class="text-xs bg-slate-700 rounded-lg px-3 py-2">Lock</button></header><div class="p-3"><button id="broadcast" class="w-full bg-emerald-600 hover:bg-emerald-500 rounded-lg py-2.5 font-semibold">🔔 Broadcast Alert</button></div><div class="grid grid-cols-2 gap-2 p-3 pt-0"><button id="pendingTab" class="rounded-lg py-2 text-sm">Pending Approvals</button><button id="activeTab" class="rounded-lg py-2 text-sm">Active Chats</button></div><div id="contactList" class="overflow-y-auto scrollbar flex-1"></div></aside><section class="flex-1 flex flex-col min-w-0"><header class="bg-slate-800 px-5 py-4"><div id="chatTitle" class="font-semibold">Select a customer</div><div class="text-xs text-slate-400">Private 1-on-1 conversation</div></header><div id="messages" class="chat-bg scrollbar overflow-y-auto flex-1 p-4 space-y-3"><p class="text-slate-400 text-sm text-center mt-10">Choose an approved contact to view messages.</p></div><form id="sendForm" class="bg-slate-800 p-3 flex gap-2"><input id="messageInput" maxlength="5000" required placeholder="Reply to selected customer…" class="flex-1 min-w-0 rounded-full bg-slate-700 px-5 py-3 outline-none focus:ring-2 focus:ring-emerald-500"><button class="rounded-full bg-emerald-500 text-slate-950 font-bold px-6">Send</button></form></section></main><div id="toast" class="fixed bottom-4 right-4 hidden bg-slate-700 rounded-xl px-4 py-3 shadow-xl"></div>`;
+  document.getElementById('lock').onclick=()=>{sessionStorage.removeItem('rtchat_admin_unlocked');if(channel)db.removeChannel(channel);login();};
+  document.getElementById('pendingTab').onclick=()=>{tab='pending';paintContacts();};
+  document.getElementById('activeTab').onclick=()=>{tab='active';paintContacts();};
+  document.getElementById('broadcast').onclick=broadcast;
+  document.getElementById('sendForm').onsubmit=send;
+  await refreshProfiles();paintContacts();subscribe();
+ }
+ async function refreshProfiles(){
+  const {data,error}=await db.from('profiles').select('id,email,role,is_approved,created_at').order('created_at',{ascending:true});
+  if(error){toast('Could not load profiles: '+error.message);return;}profiles=data||[];
+ }
+ function paintContacts(){
+  const list=document.getElementById('contactList');if(!list)return;
+  document.getElementById('pendingTab').className='rounded-lg py-2 text-sm '+(tab==='pending'?'bg-emerald-600 font-semibold':'bg-slate-800');
+  document.getElementById('activeTab').className='rounded-lg py-2 text-sm '+(tab==='active'?'bg-emerald-600 font-semibold':'bg-slate-800');
+  const rows=profiles.filter(p=>tab==='pending'?!p.is_approved:p.is_approved&&p.role!=='admin');
+  list.innerHTML=rows.map(p=>`<div class="p-4 border-b border-slate-800 hover:bg-slate-800 ${selected?.id===p.id?'bg-slate-800':''}"><button class="openContact w-full text-left" data-id="${esc(p.id)}"><div class="font-medium truncate">${esc(p.email)}</div><div class="text-xs text-slate-500 mt-1">${p.is_approved?'Approved':'Awaiting approval'}</div></button>${tab==='pending'?`<button data-id="${esc(p.id)}" class="approve mt-3 w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-bold py-2">✓ Approve</button>`:''}</div>`).join('')||`<p class="p-4 text-sm text-slate-400">${tab==='pending'?'No pending approvals.':'No active contacts yet.'}</p>`;
+  list.querySelectorAll('.openContact').forEach(b=>b.onclick=()=>{selected=profiles.find(p=>p.id===b.dataset.id);if(selected?.is_approved){document.getElementById('chatTitle').textContent=selected.email;loadMessages();paintContacts();}});
+  list.querySelectorAll('.approve').forEach(b=>b.onclick=()=>approve(b.dataset.id));
+ }
+ async function approve(id){
+  const {error}=await db.from('profiles').update({is_approved:true}).eq('id',id);
+  if(error){toast('Approval failed: '+error.message);return;}await refreshProfiles();paintContacts();toast('User approved.');
+ }
+ async function loadMessages(){
+  const box=document.getElementById('messages');if(!box||!selected)return;
+  const {data,error}=await db.from('messages').select('*').or(`and(sender_id.eq.${selected.id},receiver_id.eq.${selected.id}),and(sender_id.eq.${selected.id},receiver_id.is.null),and(receiver_id.eq.${selected.id},sender_id.neq.${selected.id})`).order('created_at',{ascending:true}).limit(300);
+  if(error){box.innerHTML=`<p class="text-rose-300 text-sm">${esc(error.message)}</p>`;return;}
+  box.innerHTML='';(data||[]).forEach(m=>append(m,false));box.scrollTop=box.scrollHeight;
+ }
+ function append(m,scroll=true){
+  const box=document.getElementById('messages');if(!box||document.getElementById('m'+m.id))return;
+  const mine=m.sender_id==='ADMIN';
+  const div=document.createElement('div');div.id='m'+m.id;div.className='flex '+(mine?'justify-end':'justify-start');
+  div.innerHTML=`<div class="bubble rounded-2xl px-4 py-2 shadow ${mine?'bg-emerald-800 text-emerald-50 rounded-br-sm':'bg-slate-700 text-slate-100 rounded-bl-sm'}"><div class="whitespace-pre-wrap">${esc(m.text)}</div><div class="text-[10px] text-slate-300/70 text-right mt-1">${time(m.created_at)}</div></div>`;box.appendChild(div);if(scroll)box.scrollTop=box.scrollHeight;
+ }
+ async function send(e){
+  e.preventDefault();if(!selected){toast('Select an approved customer first.');return;}
+  const input=document.getElementById('messageInput'),text=input.value.trim();if(!text)return;
+  const {error}=await db.from('messages').insert({sender_id:'ADMIN',receiver_id:selected.id,text});
+  if(error){toast('Send failed: '+error.message);return;}input.value='';
+ }
+ async function broadcast(){
+  const text=prompt('Enter the broadcast alert message:');if(!text?.trim())return;
+  const {error}=await db.from('messages').insert({sender_id:'ADMIN',receiver_id:null,text:text.trim()});
+  if(error){toast('Broadcast failed: '+error.message);return;}toast('Broadcast sent to connected clients.');
+ }
+ function toast(s){const t=document.getElementById('toast');if(!t)return;t.textContent=s;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3500);}
+ function subscribe(){
+  if(channel)db.removeChannel(channel);
+  channel=db.channel('admin-realtime')
+   .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},async()=>{await refreshProfiles();paintContacts();})
+   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{
+    const m=p.new;if(m.receiver_id===null){document.getElementById('tone')?.play().catch(()=>{});toast('Broadcast sent/received: '+m.text);}
+    if(selected&&(m.sender_id===selected.id||m.receiver_id===selected.id))append(m);
+   }).subscribe();
+ }
+ if(sessionStorage.getItem('rtchat_admin_unlocked')==='1')dashboard();else login();
+})();
+</script>
+</body></html>
