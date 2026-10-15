@@ -14,17 +14,35 @@
 <body class="bg-[#0c1317] text-slate-100 h-screen flex overflow-hidden">
 
   <!-- ADMIN AUTH MODAL -->
-  <div id="adminAuth" class="fixed inset-0 bg-black/85 flex items-center justify-center z-50">
-    <div class="bg-[#111b21] p-8 rounded-2xl w-96 border border-slate-800 space-y-4 shadow-2xl">
+  <div id="adminAuth" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+    <div class="bg-[#111b21] p-6 sm:p-8 rounded-2xl w-full max-w-md border border-slate-800 space-y-4 shadow-2xl">
       <div class="text-center">
         <div class="text-4xl mb-2">🛡️</div>
-        <h2 class="text-xl font-bold text-red-500">Admin Login</h2>
-        <p class="text-xs text-slate-400 mt-1">athravsharma2828@gmail.com</p>
+        <h2 class="text-xl font-bold text-red-500">Admin Live Control Login</h2>
+        <p class="text-xs text-slate-400 mt-1 font-mono">athravsharma2828@gmail.com</p>
       </div>
-      <input type="email" id="adminEmail" value="athravsharma2828@gmail.com" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
-      <input type="password" id="adminPass" value="123456789" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500">
-      <button onclick="adminLogin()" class="w-full bg-red-600 hover:bg-red-500 py-3 rounded-lg font-bold text-sm transition">Login</button>
-      <div id="authErr" class="text-xs text-red-400 text-center font-semibold"></div>
+
+      <div class="space-y-3">
+        <input type="email" id="adminEmail" value="athravsharma2828@gmail.com" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500 font-mono">
+        <input type="password" id="adminPass" value="123456789" class="w-full bg-[#202c33] p-3 rounded-lg text-sm outline-none text-white focus:ring-1 focus:ring-red-500 font-mono">
+        
+        <div class="flex gap-2">
+          <button onclick="adminLogin()" class="flex-1 bg-red-600 hover:bg-red-500 py-3 rounded-lg font-bold text-sm transition">
+            1. Try Login
+          </button>
+          <button onclick="forceCreateAndLogin()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-3 rounded-lg font-bold text-sm transition text-white">
+            2. Auto-Fix / Re-Register
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Log Screen -->
+      <div class="space-y-1 pt-2">
+        <div class="text-[11px] text-slate-400 font-semibold">Live Server Response:</div>
+        <div id="authErr" class="text-xs font-mono bg-black/70 p-3 rounded-lg border border-slate-800 text-amber-300 min-h-[60px] whitespace-pre-wrap break-all">
+Ready. Click "1. Try Login" or "2. Auto-Fix / Re-Register".
+        </div>
+      </div>
     </div>
   </div>
 
@@ -77,6 +95,12 @@
     let currentTab = 'chats';
     const adminTone = document.getElementById('adminTone');
 
+    function showStatus(text, color = "text-amber-300") {
+      const box = document.getElementById('authErr');
+      box.className = `text-xs font-mono bg-black/70 p-3 rounded-lg border border-slate-800 whitespace-pre-wrap break-all ${color}`;
+      box.innerText = `[${new Date().toLocaleTimeString()}] ${text}`;
+    }
+
     async function checkAdmin() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.user.email === 'athravsharma2828@gmail.com') {
@@ -88,8 +112,7 @@
     checkAdmin();
 
     async function adminLogin() {
-      const errBox = document.getElementById('authErr');
-      errBox.innerText = "Checking credentials...";
+      showStatus("Connecting to Supabase Auth...", "text-blue-400");
       
       const email = document.getElementById('adminEmail').value.trim();
       const password = document.getElementById('adminPass').value.trim();
@@ -97,17 +120,40 @@
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
-        errBox.innerText = "❌ " + error.message;
+        showStatus("LOGIN ERROR:\n" + error.message + "\n\n👉 Click green button '2. Auto-Fix / Re-Register' to create account fresh.", "text-red-400");
         return;
       }
 
       if (data.user && data.user.email === 'athravsharma2828@gmail.com') {
-        document.getElementById('adminAuth').classList.add('hidden');
-        loadData();
-        listenRealtime();
+        showStatus("SUCCESS! Logging in...", "text-emerald-400");
+        setTimeout(() => {
+          document.getElementById('adminAuth').classList.add('hidden');
+          loadData();
+          listenRealtime();
+        }, 500);
       } else {
-        errBox.innerText = "❌ Access Denied: Not Admin Email";
+        showStatus("Access Denied: Logged in user is not admin email.", "text-red-400");
       }
+    }
+
+    // Force register admin if user does not exist in Auth
+    async function forceCreateAndLogin() {
+      showStatus("Creating user via Supabase SignUp API...", "text-blue-400");
+      const email = document.getElementById('adminEmail').value.trim();
+      const password = document.getElementById('adminPass').value.trim();
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password
+      });
+
+      if (error) {
+        showStatus("Auto-Fix Error:\n" + error.message, "text-red-400");
+        return;
+      }
+
+      showStatus("Account created! Now attempting login...", "text-blue-400");
+      await adminLogin();
     }
 
     async function loadData() {
